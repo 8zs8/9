@@ -440,56 +440,57 @@ function showEnterButtons(){
   if (eb) eb.onclick = enter;
 }
 // 名单与校验
-const SHA="81ec162e25dc6b195582ae4bf9fc62bf4f6c83f10a7b53aa6e8a08a25f0e99bc";
-const list=`陈泓睿,男
-陈建业,男
-陈雨钒,男
-邓可妍,女
-邓晓彰,女
-郭瑾萱,女
-何丞杰,男
-何弘彬,男
-何金霖,女
-何乐瑶,女
-何泰燃,男
-何芷莹,女
-黄可蓝,女
-黄紫涵,女
-劳晓晴,女
-劳梓谦,男
-李睿诚,男
-李思亭,女
-李栩婷,女
-梁思璐,女
-梁炜晋,男
-梁倚彤,女
-林晨菲,女
-林剑涛,男
-林若曦,女
-林诗悦,女
-林毅泳,男
-林紫瑶,女
-刘辰铭,男
-楼应铖,男
-罗淳蓝,女
-罗晓娜,女
-马健朗,男
-麦耀桦,男
-庞嘉,女
-彭璐,女
-秦嘉骏,男
-谭嘉烨,女
-文俊锋,男
-吴恩哲,男
-肖童,女
-谢昊晋,男
-谢彤彤,女
-徐绰延,男
-徐铭浩,男
-杨佳祺,女
-袁梓豪,男
-张嘉荣,男
-张紫淇,女`;
+const SHA="50134054f32a7c1ac7fb41c80985c6490f15fef65ab01487a6cce2d526837f90";
+const list=`陈泓睿，男
+陈亿铷，女
+陈雍琪，女
+陈雨钒，男
+邓可妍，女
+冯欣玥，女
+何弘彬，男
+何俊辉，男
+何乐瑶，女
+何星瑶，女
+何芷莹，女
+黄梓轩，男
+劳淑怡，女
+劳晓晴，女
+李睿诚，男
+李栩婷，女
+梁炜晋，男
+梁思璐，女
+林晨菲，女
+林剑涛，男
+林若䂀，女
+林诗悦，女
+林小盛，男
+林毅泳，男
+林紫瑶，女
+刘咏昕，女
+楼应铖，男
+马健朗，男
+马若曦，女
+马悦，女
+麦耀桦，男
+庞嘉，女
+彭璐，女
+潘子棋，男
+唐孜晨，男
+肖童，女
+谢彤彤，女
+徐绰延，男
+徐铭浩，男
+杨浩铭，男
+杨佳鑫，男
+杨继明，男
+杨智轩，男
+吴恩哲，男
+虞慕晨，女
+张文健，男
+张可彤，女
+祝紫欣，女
+周子涛，男
+朱恒之，男`;
 async function sha256(t){const b=new TextEncoder().encode(t.trim());const h=await crypto.subtle.digest('SHA-256',b);return Array.from(new Uint8Array(h)).map(x=>x.toString(16).padStart(2,'0')).join('');}
 (async()=>{const h=await sha256(list);if(h!==SHA){alert('名单已被篡改！');return;}const wait=Math.max(0,MIN_LOAD-(Date.now()-start));setTimeout(showEnterButtons,wait);})();
 // 主程序
