@@ -440,7 +440,7 @@ function showEnterButtons(){
   if (eb) eb.onclick = enter;
 }
 // 名单与校验
-const SHA="50134054f32a7c1ac7fb41c80985c6490f15fef65ab01487a6cce2d526837f90";
+const SHA="4900616b4334dcb4cf493dddb99aad33160eb4a70482d49d8382ffa43607dcbe";
 const list=`陈泓睿，男
 陈亿铷，女
 陈雍琪，女
@@ -461,7 +461,7 @@ const list=`陈泓睿，男
 梁思璐，女
 林晨菲，女
 林剑涛，男
-林若䂀，女
+林若曦，女
 林诗悦，女
 林小盛，男
 林毅泳，男
@@ -501,7 +501,8 @@ function initApp(){
     clearTimeout(rt);
     rt=setTimeout(()=>{ if (window._updateRendererSize) window._updateRendererSize(); }, 80);
   });
-  const students=list.trim().split('\n').map(line=>{const [n,g]=line.split(',');return {name:n,gender:g.trim()};}).filter(Boolean);
+  const students=list.trim().split('\n').map(line=>{const [n,g]=line.split(/[,，]\s*/);return {name:n.trim(),gender:g.trim()};}).filter(Boolean);
+  const cntAll=students.length,cntBoy=students.filter(s=>s.gender==='男').length,cntGirl=students.filter(s=>s.gender==='女').length;
   let usedNames=[];let mode='all';let hideTimer=null;
   const ui=document.querySelector('.ui-overlay');
   ui.innerHTML=`
@@ -514,7 +515,7 @@ function initApp(){
         <button class="mode-btn mode-girl">只抽女生</button>
       </div>
       <button class="action-btn" id="actionBtn">开始抽问</button>
-      <div class="footer-info">当前模式：全班抽问 | 共50人</div>
+      <div class="footer-info">当前模式：全班抽问 | 共${cntAll}人</div>
     </div>
   `;
   const sel=document.getElementById('selectedNameAnimator');
@@ -522,9 +523,9 @@ function initApp(){
   const footer=document.querySelector('.footer-info');
   function clearName(){sel.classList.remove('animate-to-center');sel.textContent='';}
   function autoHide(){clearTimeout(hideTimer);hideTimer=setTimeout(clearName,5000);}
-  document.querySelector('.mode-all').onclick=()=>{mode='all';act(0);footer.textContent='当前模式：全班抽问 | 共49人';}
-  document.querySelector('.mode-boy').onclick=()=>{mode='boy';act(1);footer.textContent='当前模式：只抽男生 | 共23人';}
-  document.querySelector('.mode-girl').onclick=()=>{mode='girl';act(2);footer.textContent='当前模式：只抽女生 | 共26人';}
+  document.querySelector('.mode-all').onclick=()=>{mode='all';act(0);footer.textContent='当前模式：全班抽问 | 共'+cntAll+'人';}
+  document.querySelector('.mode-boy').onclick=()=>{mode='boy';act(1);footer.textContent='当前模式：只抽男生 | 共'+cntBoy+'人';}
+  document.querySelector('.mode-girl').onclick=()=>{mode='girl';act(2);footer.textContent='当前模式：只抽女生 | 共'+cntGirl+'人';}
   function act(i){document.querySelectorAll('.mode-btn').forEach((b,x)=>b.classList.toggle('active',x===i));}
   function getPool(){
     let p=students;
