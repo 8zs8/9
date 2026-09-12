@@ -16,15 +16,36 @@
     }
     #loading-screen.fade-out{opacity:0}
     .loading-image-wrapper{
-      z-index:3;margin-top:4vh;max-width:min(1000px,95vw);width:100%;
-      display:flex;justify-content:center;align-items:flex-start;flex:1
+      position:relative;z-index:3;margin-top:4vh;max-width:min(1000px,95vw);width:100%;
+      display:flex;justify-content:center;align-items:center;flex:1
+    }
+    .image-loading-box{
+      position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+      transition:opacity .4s ease
+    }
+    .image-loading-box.hidden{opacity:0;pointer-events:none}
+    .loading-spinner{
+      width:clamp(48px,9vw,72px);height:clamp(48px,9vw,72px);border-radius:50%;
+      border:4px solid rgba(0,200,255,.22);border-top-color:#5ce1ff;border-right-color:#8af0a8;
+      animation:spin 1.1s linear infinite;
+      box-shadow:0 0 20px hsla(var(--hue),100%,60%,.55),inset 0 0 12px rgba(0,0,0,.35)
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .loading-percent{
+      font-size:clamp(2.2rem,6vw,3.4rem);font-weight:900;letter-spacing:2px;
+      font-variant-numeric:tabular-nums;line-height:1;
+      background:linear-gradient(90deg,#ffffff,#c6f5ff,#5ce1ff);
+      -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
+      filter:drop-shadow(0 0 10px rgba(120,220,255,.9)) drop-shadow(0 0 2px rgba(255,255,255,.8))
     }
     .loading-image{
       max-width:100%;max-height:60vh;height:auto;width:auto;
       border-radius:16px;box-shadow:0 8px 32px rgba(0,200,255,.35),0 0 0 1px rgba(0,180,255,.2);
-      object-fit:contain;opacity:0;animation:imgFade .8s ease forwards
+      object-fit:contain;opacity:0;transform:translateY(10px) scale(.98);
+      transition:opacity .7s ease,transform .7s ease
     }
-    @keyframes imgFade{from{opacity:0;transform:translateY(-10px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+    .loading-image.loaded{opacity:1;transform:translateY(0) scale(1)}
     .loading-center{
       display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:3
     }
@@ -286,14 +307,18 @@
 <div id="loading-screen">
   <div class="dot-grid"></div>
   <div class="loading-image-wrapper">
-    <img class="loading-image" src="https://8zs8.github.io/9/ad.png" alt="阿白老师课堂">
+    <div class="image-loading-box">
+      <div class="loading-spinner"></div>
+      <div class="loading-percent" id="loadingPercent">0%</div>
+    </div>
+    <img class="loading-image" alt="阿白老师课堂">
   </div>
   <div class="loading-center" id="loading-center">
     <div class="loading-text">初始化点名系统</div>
   </div>
   <div class="loading-bottom" id="loading-bottom">
     <div class="loading-bar"><div class="loading-progress" id="loadingProgress"></div></div>
-    <div class="loading-step" id="loadingStep">加载中.</div>
+    <div class="loading-step" id="loadingStep">正在加载图片资源...</div>
   </div>
 </div>
 <div class="result-modal" id="resultModal">
@@ -359,11 +384,70 @@ function closeGuide(){
 // 彩色正方形网格
 const grid = document.querySelector('.dot-grid');
 for(let i=0;i<150;i++){const d=document.createElement('div');d.className='dot';d.style.animationDelay=(i%10)*0.3+'s';grid.appendChild(d)}
-// 加载逻辑
-const MIN_LOAD=3000,start=Date.now();
-const dots=['加载中.','加载中..','加载中...'];let dotIdx=0;
-setInterval(()=>document.getElementById('loadingStep').textContent=dots[dotIdx++%3],400);
-const progressTimer=setInterval(()=>{const p=Math.min(100,(Date.now()-start)/MIN_LOAD*100);document.getElementById('loadingProgress').style.width=p+'%'},30);
+// 真实图片加载进度（XHR 按实际下载字节数计算，非伪进度）
+const IMG_SRC='https://8zs8.github.io/9/ad.jif';
+const MIN_LOAD=3000,start=Date.now(); // 保证图片有足够的展示时间
+const progressBar=document.getElementById('loadingProgress');
+const percentText=document.getElementById('loadingPercent');
+const stepText=document.getElementById('loadingStep');
+const loadingImg=document.querySelector('.loading-image');
+const loadingBox=document.querySelector('.image-loading-box');
+const dots=['正在加载图片资源.','正在加载图片资源..','正在加载图片资源...'];let dotIdx=0;
+let imageReady=false,shaOk=false,finished=false;
+const dotTimer=setInterval(()=>{if(!finished)stepText.textContent=dots[dotIdx++%3]},400);
+function setProgress(p){
+  const pct=Math.max(0,Math.min(100,Math.round(p)));
+  progressBar.style.width=pct+'%';
+  percentText.textContent=pct+'%';
+  if(pct>=100&&!finished){finished=true;stepText.textContent='加载完成';}
+}
+function tryShow(){
+  if(imageReady&&shaOk){
+    clearInterval(dotTimer);
+    stepText.textContent='加载完成';
+    const wait=Math.max(0,MIN_LOAD-(Date.now()-start));
+    setTimeout(showEnterButtons,wait);
+  }
+}
+function loadImageReal(src,done){
+  let retried=false;
+  function fail(){
+    if(!retried){retried=true;setTimeout(attempt,400);}
+    else{
+      // 兜底：进度不可用时直接加载原图，仍等完全解码后再显示
+      loadingImg.onload=()=>{setProgress(100);done();};
+      loadingImg.onerror=()=>{setProgress(100);done();};
+      loadingImg.src=src;
+    }
+  }
+  function attempt(){
+    const xhr=new XMLHttpRequest();
+    xhr.open('GET',src,true);
+    xhr.responseType='blob';
+    xhr.onprogress=e=>{
+      if(e.lengthComputable&&e.total>0)setProgress(e.loaded/e.total*100);
+    };
+    xhr.onload=()=>{
+      if(xhr.status>=200&&xhr.status<300){
+        setProgress(100);
+        const url=URL.createObjectURL(xhr.response);
+        const show=()=>{
+          URL.revokeObjectURL(url);
+          loadingImg.classList.add('loaded');
+          loadingBox.classList.add('hidden');
+          done();
+        };
+        loadingImg.onload=show;
+        loadingImg.onerror=show;
+        loadingImg.src=url; // 整图一次性解码后淡入，避免浏览器逐行渲染
+      }else fail();
+    };
+    xhr.onerror=fail;
+    xhr.send();
+  }
+  attempt();
+}
+loadImageReal(IMG_SRC,()=>{imageReady=true;tryShow();});
 // 设置面板 - Fix 3: 点击设置同时关闭提示框
 document.querySelector('.settings-btn').onclick=()=>{
   document.querySelector('.settings-panel').classList.toggle('show');
@@ -409,7 +493,6 @@ function closeResult(){
   document.getElementById('resultModal').style.display='none';
 }
 function enter(){
-  clearInterval(progressTimer);
   const ls = document.getElementById('loading-screen');
   const doShow = () => {
     if (ls && ls.parentNode) ls.remove();
@@ -425,7 +508,6 @@ function enter(){
   setTimeout(doShow, 550);
 }
 function showEnterButtons(){
-  clearInterval(progressTimer);
   // 隐藏加载文字和进度条，图片保持显示
   const center = document.getElementById('loading-center');
   if (center) center.style.display = 'none';
@@ -492,7 +574,7 @@ const list=`陈泓睿，男
 周子涛，男
 朱恒之，男`;
 async function sha256(t){const b=new TextEncoder().encode(t.trim());const h=await crypto.subtle.digest('SHA-256',b);return Array.from(new Uint8Array(h)).map(x=>x.toString(16).padStart(2,'0')).join('');}
-(async()=>{const h=await sha256(list);if(h!==SHA){alert('名单已被篡改！');return;}const wait=Math.max(0,MIN_LOAD-(Date.now()-start));setTimeout(showEnterButtons,wait);})();
+(async()=>{const h=await sha256(list);if(h!==SHA){alert('名单已被篡改！');return;}shaOk=true;tryShow();})();
 // 主程序
 function initApp(){
   // Feature 1: 窗口变化时动态调整，不刷新
