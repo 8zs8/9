@@ -385,7 +385,11 @@ function closeGuide(){
 const grid = document.querySelector('.dot-grid');
 for(let i=0;i<150;i++){const d=document.createElement('div');d.className='dot';d.style.animationDelay=(i%10)*0.3+'s';grid.appendChild(d)}
 // 真实图片加载进度（XHR 按实际下载字节数计算，非伪进度）
-const IMG_SRC='https://8zs8.github.io/9/ad.jif';
+// 图片源：默认临时链接（优先），跨域请求被拦截时自动切换到仓库永久链接
+const IMG_SRCS=[
+  'https://d.tmpfile.link/public/2026-09-12/f9a5679e-f9fe-433d-85e0-7d07a0e4dd25/ad.gif',
+  'https://8zs8.github.io/9/ad.gif'
+];
 const MIN_LOAD=3000,start=Date.now(); // 保证图片有足够的展示时间
 const progressBar=document.getElementById('loadingProgress');
 const percentText=document.getElementById('loadingPercent');
@@ -409,18 +413,18 @@ function tryShow(){
     setTimeout(showEnterButtons,wait);
   }
 }
-function loadImageReal(src,done){
-  let retried=false;
-  function fail(){
-    if(!retried){retried=true;setTimeout(attempt,400);}
-    else{
-      // 兜底：进度不可用时直接加载原图，仍等完全解码后再显示
+function loadImageReal(sources,done){
+  let idx=0;
+  function next(){
+    if(idx>=sources.length){
+      // 全部跨域请求失败：兜底直接用 <img> 加载（显示不受 CORS 限制），仍等完全解码后淡入
       loadingImg.onload=()=>{setProgress(100);done();};
       loadingImg.onerror=()=>{setProgress(100);done();};
-      loadingImg.src=src;
+      loadingImg.src=sources[sources.length-1];
+      return;
     }
-  }
-  function attempt(){
+    const src=sources[idx++];
+    setProgress(0);
     const xhr=new XMLHttpRequest();
     xhr.open('GET',src,true);
     xhr.responseType='blob';
@@ -440,14 +444,14 @@ function loadImageReal(src,done){
         loadingImg.onload=show;
         loadingImg.onerror=show;
         loadingImg.src=url; // 整图一次性解码后淡入，避免浏览器逐行渲染
-      }else fail();
+      }else next();
     };
-    xhr.onerror=fail;
+    xhr.onerror=next;
     xhr.send();
   }
-  attempt();
+  next();
 }
-loadImageReal(IMG_SRC,()=>{imageReady=true;tryShow();});
+loadImageReal(IMG_SRCS,()=>{imageReady=true;tryShow();});
 // 设置面板 - Fix 3: 点击设置同时关闭提示框
 document.querySelector('.settings-btn').onclick=()=>{
   document.querySelector('.settings-panel').classList.toggle('show');
