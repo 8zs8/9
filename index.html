@@ -7,7 +7,15 @@
   <link rel="icon" href="https://8zs8.github.io/8/logo.png">
   <style>
     *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif;user-select:none;-webkit-user-select:none}
-    body{width:100vw;height:100vh;overflow:hidden;background:#03050a url('https://8zs8.github.io/9/as2.gif') center/cover no-repeat fixed;--hue:200}
+    body{width:100vw;height:100vh;overflow:hidden;background:#03050a;--hue:200}
+    /* 背景动图改为 <img> 图层：预加载进缓存后由浏览器合成器循环播放，避免 fixed 背景每帧重栅格化大动图 */
+    #bgGif{
+      position:fixed;top:0;left:0;width:100vw;height:100vh;
+      object-fit:cover;object-position:center;
+      z-index:1;opacity:0;transition:opacity .6s ease;pointer-events:none;
+      background:#03050a;
+    }
+    #bgGif.show{opacity:1}
     #loading-screen{
       position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;
       display:flex;flex-direction:column;align-items:center;justify-content:space-between;
@@ -304,6 +312,7 @@
   </style>
 </head>
 <body>
+<img id="bgGif" alt="" aria-hidden="true">
 <div id="loading-screen">
   <div class="dot-grid"></div>
   <div class="loading-image-wrapper">
@@ -398,6 +407,8 @@ const loadingImg=document.querySelector('.loading-image');
 const loadingBox=document.querySelector('.image-loading-box');
 const dots=['正在加载图片资源.','正在加载图片资源..','正在加载图片资源...'];let dotIdx=0;
 let imageReady=false,shaOk=false,finished=false;
+// 记录最终成功的图片源：进主页后背景动图直接引用该 URL（命中 HTTP 缓存），由浏览器循环播放，避免重复下载与每帧重渲染
+let bgSrc = IMG_SRCS[0];
 const dotTimer=setInterval(()=>{if(!finished)stepText.textContent=dots[dotIdx++%3]},400);
 function setProgress(p){
   const pct=Math.max(0,Math.min(100,Math.round(p)));
@@ -418,6 +429,7 @@ function loadImageReal(sources,done){
   function next(){
     if(idx>=sources.length){
       // 全部跨域请求失败：兜底直接用 <img> 加载（显示不受 CORS 限制），仍等完全解码后淡入
+      bgSrc = sources[sources.length-1];
       loadingImg.onload=()=>{ setProgress(100); loadingImg.classList.add('loaded'); loadingBox.classList.add('hidden'); done(); };
       loadingImg.onerror=()=>{ setProgress(100); loadingBox.classList.add('hidden'); done(); }; // 图片放不上去就隐藏百分数，保留进度条
       loadingImg.src=sources[sources.length-1];
@@ -433,6 +445,7 @@ function loadImageReal(sources,done){
     };
     xhr.onload=()=>{
       if(xhr.status>=200&&xhr.status<300){
+        bgSrc = src; // 记录本次成功源，供主页背景动图引用缓存
         setProgress(100);
         const url=URL.createObjectURL(xhr.response);
         const show=()=>{
@@ -505,6 +518,9 @@ function enter(){
     if (ui) ui.style.display='flex';
     const gt = document.getElementById('guideTip');
     if (gt) gt.style.display='block';
+    // 进主页时把已缓存的动图交给 <img> 图层，浏览器走合成器循环播放，不再每帧重栅格化
+    const bg = document.getElementById('bgGif');
+    if (bg && bgSrc) { bg.src = bgSrc; bg.classList.add('show'); }
     initApp();
   };
   if (!ls) { doShow(); return; }
